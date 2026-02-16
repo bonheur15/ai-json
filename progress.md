@@ -11,3 +11,8 @@
 - Added base documentation and task tracking files.
 - Added initial CLI entrypoint at `cmd/ai-json/main.go`.
 - Established step-by-step commit workflow.
+
+### Step 2 completed
+- Implemented robust event parser supporting JSON array, single object, and NDJSON.
+- Added schema helper methods for typed field extraction and common-field normalization.
+- Added parser tests against sample data and NDJSON fallback.
