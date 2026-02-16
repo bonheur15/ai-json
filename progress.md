@@ -16,3 +16,8 @@
 - Implemented robust event parser supporting JSON array, single object, and NDJSON.
 - Added schema helper methods for typed field extraction and common-field normalization.
 - Added parser tests against sample data and NDJSON fallback.
+
+### Step 3 completed
+- Added analysis engine for event distributions, confidence/latency summaries, and identity statistics.
+- Added validation logic for common fields, bbox integrity, person-event fields, proximity constraints, and frame tick fields.
+- Added analysis tests covering sample data and invalid proximity scenarios.
