@@ -53,3 +53,10 @@
 - Extended text report with class and camera event distribution blocks.
 - Added test coverage for stream class/camera count aggregation.
 - Re-ran full test suite and stream CLI report checks.
+
+### Step 9 completed
+- Added SQLite storage layer (`internal/store`) using a local file database.
+- Added schema migration with indexes for event type, class, camera, and timestamp.
+- Implemented transaction-based event ingestion from decoded event streams.
+- Implemented paginated event query API and SQL-based summary aggregations.
+- Added storage tests covering insert, list filtering, and summary counts.
