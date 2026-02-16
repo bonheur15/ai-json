@@ -61,3 +61,55 @@ func TestRunFindsInvalidProximity(t *testing.T) {
 		t.Fatalf("expected validation errors")
 	}
 }
+
+func TestRunTransportDelayJitterThreshold(t *testing.T) {
+	data := []byte(`[
+	  {
+		"event_type":"person_tracked",
+		"room_id":"r1",
+		"camera_id":"c1",
+		"pipeline":"p1",
+		"confidence":0.5,
+		"timestamp":1,
+		"frame_timestamp":1,
+		"frame_source_timestamp":1,
+		"emitted_at":1,
+		"timestamp_offset_seconds":0,
+		"timestamp_stabilizer_skew_seconds":0,
+		"frame_age_seconds":0.1,
+		"frame_transport_delay_seconds":-0.01,
+		"person_id":"unknown:1",
+		"global_person_id":1,
+		"track_id":1
+	  },
+	  {
+		"event_type":"person_tracked",
+		"room_id":"r1",
+		"camera_id":"c1",
+		"pipeline":"p1",
+		"confidence":0.5,
+		"timestamp":1,
+		"frame_timestamp":1,
+		"frame_source_timestamp":1,
+		"emitted_at":1,
+		"timestamp_offset_seconds":0,
+		"timestamp_stabilizer_skew_seconds":0,
+		"frame_age_seconds":0.1,
+		"frame_transport_delay_seconds":-0.25,
+		"person_id":"unknown:1",
+		"global_person_id":1,
+		"track_id":1
+	  }
+	]`)
+	events, err := model.ParseEvents(data)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	res := Run(events)
+	if res.WarningCount == 0 {
+		t.Fatalf("expected warning for slight negative delay")
+	}
+	if res.ErrorCount == 0 {
+		t.Fatalf("expected error for strong negative delay")
+	}
+}

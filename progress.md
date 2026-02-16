@@ -27,3 +27,9 @@
 - Implemented complete CLI flags for format selection, filtering, issue limits, and strict mode.
 - Added text and JSON report output including top entities, latency metrics, and validation issue summaries.
 - Added tests for input loading and text report rendering.
+
+### Step 5 completed
+- Added threshold-based transport delay validation to reduce false positives from small timing jitter.
+- Added tests for warning vs. error behavior on negative transport delay.
+- Updated README with complete usage, filtering, and report examples.
+- Verified project with `go test ./...` and sample CLI execution.

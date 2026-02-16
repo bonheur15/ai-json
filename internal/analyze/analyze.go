@@ -136,8 +136,10 @@ func Run(events []model.Event) Analysis {
 		}
 		if v, ok := ev.Float64("frame_transport_delay_seconds"); ok {
 			delay = append(delay, v)
-			if v < 0 {
-				issues = append(issues, ValidationIssue{Severity: SeverityError, Code: "negative_transport_delay", Message: "frame_transport_delay_seconds must be >= 0", EventIndex: i, EventType: eventType})
+			if v < -0.10 {
+				issues = append(issues, ValidationIssue{Severity: SeverityError, Code: "negative_transport_delay", Message: "frame_transport_delay_seconds is strongly negative (< -0.10s)", EventIndex: i, EventType: eventType})
+			} else if v < 0 {
+				issues = append(issues, ValidationIssue{Severity: SeverityWarn, Code: "negative_transport_delay", Message: "frame_transport_delay_seconds slightly negative (possible clock jitter)", EventIndex: i, EventType: eventType})
 			}
 		}
 		if v, ok := ev.Float64("timestamp_offset_seconds"); ok {
