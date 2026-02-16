@@ -30,11 +30,34 @@ type ClassConfig struct {
 }
 
 type CameraConfig struct {
-	ID         string   `json:"id"`
-	ImagesDir  string   `json:"images_dir"`
-	EventsDir  string   `json:"events_dir"`
-	EventFiles []string `json:"event_files"`
-	EventGlobs []string `json:"event_globs"`
+	ID          string   `json:"id"`
+	ImagesDir   string   `json:"images_dir"`
+	EventsDir   string   `json:"events_dir"`
+	FilePattern string   `json:"file_pattern"`
+	EventFiles  []string `json:"event_files,omitempty"`
+	EventGlobs  []string `json:"event_globs,omitempty"`
+}
+
+type ResolvedStream struct {
+	ConfigPath string
+	ConfigDir  string
+	Classes    []ResolvedClass
+}
+
+type ResolvedClass struct {
+	ClassID string
+	Name    string
+	BaseDir string
+	Cameras []ResolvedCamera
+}
+
+type ResolvedCamera struct {
+	ID          string
+	ImagesDir   string
+	EventsDir   string
+	FilePattern string
+	EventFiles  []string
+	EventGlobs  []string
 }
 
 type StreamSummary struct {
@@ -55,6 +78,7 @@ type ClassSummary struct {
 type CameraSummary struct {
 	ID             string   `json:"id"`
 	ImagesDir      string   `json:"images_dir"`
+	EventDir       string   `json:"event_dir"`
 	ImageCount     int      `json:"image_count"`
 	EventFiles     []string `json:"event_files"`
 	EventFileCount int      `json:"event_file_count"`
@@ -62,92 +86,27 @@ type CameraSummary struct {
 }
 
 func LoadFromStreamConfig(path string) (Dataset, error) {
-	absCfg, err := filepath.Abs(path)
+	resolved, err := ResolveStreamConfig(path)
 	if err != nil {
-		return Dataset{}, fmt.Errorf("resolve stream config path: %w", err)
+		return Dataset{}, err
 	}
 
-	b, err := os.ReadFile(absCfg)
-	if err != nil {
-		return Dataset{}, fmt.Errorf("read stream config %s: %w", absCfg, err)
-	}
-
-	var cfg StreamConfig
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		return Dataset{}, fmt.Errorf("decode stream config %s: %w", absCfg, err)
-	}
-	if len(cfg.Classes) == 0 {
-		return Dataset{}, fmt.Errorf("stream config must contain at least one class")
-	}
-
-	cfgDir := filepath.Dir(absCfg)
 	allEvents := make([]model.Event, 0)
 	allFiles := make([]string, 0)
-	stream := StreamSummary{ConfigPath: absCfg, TotalClasses: len(cfg.Classes), Classes: make([]ClassSummary, 0, len(cfg.Classes))}
+	stream := StreamSummary{ConfigPath: resolved.ConfigPath, TotalClasses: len(resolved.Classes), Classes: make([]ClassSummary, 0, len(resolved.Classes))}
 
-	classSeen := map[string]struct{}{}
-	for _, classCfg := range cfg.Classes {
-		if strings.TrimSpace(classCfg.ClassID) == "" {
-			return Dataset{}, fmt.Errorf("class_id is required for each class")
-		}
-		if _, exists := classSeen[classCfg.ClassID]; exists {
-			return Dataset{}, fmt.Errorf("duplicate class_id %q", classCfg.ClassID)
-		}
-		classSeen[classCfg.ClassID] = struct{}{}
-
-		baseDir := classCfg.BaseDir
-		if strings.TrimSpace(baseDir) == "" {
-			baseDir = classCfg.ClassID
-		}
-		if !filepath.IsAbs(baseDir) {
-			baseDir = filepath.Join(cfgDir, baseDir)
-		}
-		if _, err := os.Stat(baseDir); err != nil {
-			return Dataset{}, fmt.Errorf("class base_dir %s: %w", baseDir, err)
-		}
-
-		classSummary := ClassSummary{ClassID: classCfg.ClassID, Name: classCfg.Name, BaseDir: baseDir, Cameras: make([]CameraSummary, 0, len(classCfg.Cameras))}
-		cameraByID := map[string]CameraConfig{}
-		for _, c := range classCfg.Cameras {
-			if strings.TrimSpace(c.ID) == "" {
-				return Dataset{}, fmt.Errorf("class %s has camera with empty id", classCfg.ClassID)
-			}
-			if _, exists := cameraByID[c.ID]; exists {
-				return Dataset{}, fmt.Errorf("class %s has duplicate camera id %s", classCfg.ClassID, c.ID)
-			}
-			cameraByID[c.ID] = c
-		}
-		for _, required := range []string{CameraFront, CameraBack} {
-			if _, ok := cameraByID[required]; !ok {
-				return Dataset{}, fmt.Errorf("class %s must define %q and %q cameras", classCfg.ClassID, CameraFront, CameraBack)
-			}
-		}
-
-		for _, camID := range []string{CameraFront, CameraBack} {
-			cam := cameraByID[camID]
-			imagesDir := cam.ImagesDir
-			if strings.TrimSpace(imagesDir) == "" {
-				imagesDir = filepath.Join(baseDir, camID, "images")
-			}
-			if !filepath.IsAbs(imagesDir) {
-				imagesDir = filepath.Join(cfgDir, imagesDir)
-			}
-			if _, err := os.Stat(imagesDir); err != nil {
-				return Dataset{}, fmt.Errorf("class %s camera %s images_dir %s: %w", classCfg.ClassID, camID, imagesDir, err)
-			}
-			imageCount, err := countJPG(imagesDir)
+	for _, cls := range resolved.Classes {
+		classSummary := ClassSummary{ClassID: cls.ClassID, Name: cls.Name, BaseDir: cls.BaseDir, Cameras: make([]CameraSummary, 0, len(cls.Cameras))}
+		for _, cam := range cls.Cameras {
+			imageCount, err := countJPG(cam.ImagesDir)
 			if err != nil {
-				return Dataset{}, fmt.Errorf("class %s camera %s images scan: %w", classCfg.ClassID, camID, err)
+				return Dataset{}, fmt.Errorf("class %s camera %s images scan: %w", cls.ClassID, cam.ID, err)
 			}
 
-			eventFiles, err := resolveCameraEventFiles(cfgDir, baseDir, cam)
+			eventFiles, err := ResolveCameraEventFiles(resolved.ConfigDir, cls.BaseDir, cam)
 			if err != nil {
-				return Dataset{}, fmt.Errorf("class %s camera %s events: %w", classCfg.ClassID, camID, err)
+				return Dataset{}, fmt.Errorf("class %s camera %s events: %w", cls.ClassID, cam.ID, err)
 			}
-			if len(eventFiles) == 0 {
-				return Dataset{}, fmt.Errorf("class %s camera %s has no event JSON files", classCfg.ClassID, camID)
-			}
-
 			cameraEventCount := 0
 			for _, f := range eventFiles {
 				b, err := os.ReadFile(f)
@@ -159,9 +118,8 @@ func LoadFromStreamConfig(path string) (Dataset, error) {
 					return Dataset{}, fmt.Errorf("parse %s: %w", f, err)
 				}
 				for i := range events {
-					// Attach stream metadata for downstream filtering/reporting.
-					events[i].Raw["stream_class_id"] = classCfg.ClassID
-					events[i].Raw["stream_camera_id"] = camID
+					events[i].Raw["stream_class_id"] = cls.ClassID
+					events[i].Raw["stream_camera_id"] = cam.ID
 				}
 				cameraEventCount += len(events)
 				allEvents = append(allEvents, events...)
@@ -171,15 +129,15 @@ func LoadFromStreamConfig(path string) (Dataset, error) {
 			stream.TotalEventFiles += len(eventFiles)
 			allFiles = append(allFiles, eventFiles...)
 			classSummary.Cameras = append(classSummary.Cameras, CameraSummary{
-				ID:             camID,
-				ImagesDir:      imagesDir,
+				ID:             cam.ID,
+				ImagesDir:      cam.ImagesDir,
+				EventDir:       cam.EventsDir,
 				ImageCount:     imageCount,
 				EventFiles:     eventFiles,
 				EventFileCount: len(eventFiles),
 				EventCount:     cameraEventCount,
 			})
 		}
-
 		stream.Classes = append(stream.Classes, classSummary)
 	}
 
@@ -187,7 +145,109 @@ func LoadFromStreamConfig(path string) (Dataset, error) {
 	return Dataset{Files: allFiles, Events: allEvents, Stream: &stream}, nil
 }
 
-func resolveCameraEventFiles(cfgDir string, baseDir string, cam CameraConfig) ([]string, error) {
+func ResolveStreamConfig(path string) (ResolvedStream, error) {
+	absCfg, err := filepath.Abs(path)
+	if err != nil {
+		return ResolvedStream{}, fmt.Errorf("resolve stream config path: %w", err)
+	}
+	b, err := os.ReadFile(absCfg)
+	if err != nil {
+		return ResolvedStream{}, fmt.Errorf("read stream config %s: %w", absCfg, err)
+	}
+
+	var cfg StreamConfig
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return ResolvedStream{}, fmt.Errorf("decode stream config %s: %w", absCfg, err)
+	}
+	if len(cfg.Classes) == 0 {
+		return ResolvedStream{}, fmt.Errorf("stream config must contain at least one class")
+	}
+
+	cfgDir := filepath.Dir(absCfg)
+	resolved := ResolvedStream{ConfigPath: absCfg, ConfigDir: cfgDir, Classes: make([]ResolvedClass, 0, len(cfg.Classes))}
+	classSeen := map[string]struct{}{}
+
+	for _, classCfg := range cfg.Classes {
+		if strings.TrimSpace(classCfg.ClassID) == "" {
+			return ResolvedStream{}, fmt.Errorf("class_id is required for each class")
+		}
+		if _, exists := classSeen[classCfg.ClassID]; exists {
+			return ResolvedStream{}, fmt.Errorf("duplicate class_id %q", classCfg.ClassID)
+		}
+		classSeen[classCfg.ClassID] = struct{}{}
+
+		baseDir := classCfg.BaseDir
+		if strings.TrimSpace(baseDir) == "" {
+			baseDir = classCfg.ClassID
+		}
+		if !filepath.IsAbs(baseDir) {
+			baseDir = filepath.Join(cfgDir, baseDir)
+		}
+		if _, err := os.Stat(baseDir); err != nil {
+			return ResolvedStream{}, fmt.Errorf("class %s base_dir %s: %w", classCfg.ClassID, baseDir, err)
+		}
+
+		cameraByID := map[string]CameraConfig{}
+		for _, c := range classCfg.Cameras {
+			if strings.TrimSpace(c.ID) == "" {
+				return ResolvedStream{}, fmt.Errorf("class %s has camera with empty id", classCfg.ClassID)
+			}
+			if _, exists := cameraByID[c.ID]; exists {
+				return ResolvedStream{}, fmt.Errorf("class %s has duplicate camera id %s", classCfg.ClassID, c.ID)
+			}
+			cameraByID[c.ID] = c
+		}
+		for _, required := range []string{CameraFront, CameraBack} {
+			if _, ok := cameraByID[required]; !ok {
+				return ResolvedStream{}, fmt.Errorf("class %s must define %q and %q cameras", classCfg.ClassID, CameraFront, CameraBack)
+			}
+		}
+
+		resolvedClass := ResolvedClass{ClassID: classCfg.ClassID, Name: classCfg.Name, BaseDir: baseDir, Cameras: make([]ResolvedCamera, 0, 2)}
+		for _, camID := range []string{CameraFront, CameraBack} {
+			cam := cameraByID[camID]
+			imagesDir := cam.ImagesDir
+			if strings.TrimSpace(imagesDir) == "" {
+				imagesDir = filepath.Join(baseDir, camID, "images")
+			}
+			if !filepath.IsAbs(imagesDir) {
+				imagesDir = filepath.Join(cfgDir, imagesDir)
+			}
+			if _, err := os.Stat(imagesDir); err != nil {
+				return ResolvedStream{}, fmt.Errorf("class %s camera %s images_dir %s: %w", classCfg.ClassID, camID, imagesDir, err)
+			}
+
+			eventsDir := cam.EventsDir
+			if strings.TrimSpace(eventsDir) == "" {
+				eventsDir = filepath.Join(baseDir, camID, "events")
+			}
+			if !filepath.IsAbs(eventsDir) {
+				eventsDir = filepath.Join(cfgDir, eventsDir)
+			}
+			if _, err := os.Stat(eventsDir); err != nil {
+				return ResolvedStream{}, fmt.Errorf("class %s camera %s events_dir %s: %w", classCfg.ClassID, camID, eventsDir, err)
+			}
+
+			pattern := cam.FilePattern
+			if strings.TrimSpace(pattern) == "" {
+				pattern = "*.json"
+			}
+
+			resolvedClass.Cameras = append(resolvedClass.Cameras, ResolvedCamera{
+				ID:          camID,
+				ImagesDir:   imagesDir,
+				EventsDir:   eventsDir,
+				FilePattern: pattern,
+				EventFiles:  cam.EventFiles,
+				EventGlobs:  cam.EventGlobs,
+			})
+		}
+		resolved.Classes = append(resolved.Classes, resolvedClass)
+	}
+	return resolved, nil
+}
+
+func ResolveCameraEventFiles(cfgDir string, baseDir string, cam ResolvedCamera) ([]string, error) {
 	paths := make([]string, 0)
 	for _, f := range cam.EventFiles {
 		for _, part := range splitCSV(f) {
@@ -214,14 +274,7 @@ func resolveCameraEventFiles(cfgDir string, baseDir string, cam CameraConfig) ([
 		}
 	}
 
-	if cam.EventsDir != "" {
-		eventsDir := cam.EventsDir
-		if !filepath.IsAbs(eventsDir) {
-			eventsDir = filepath.Join(cfgDir, eventsDir)
-		}
-		globs = append(globs, filepath.Join(eventsDir, "*.json"))
-	}
-
+	globs = append(globs, filepath.Join(cam.EventsDir, cam.FilePattern))
 	if len(paths) == 0 && len(globs) == 0 {
 		globs = append(globs, filepath.Join(baseDir, cam.ID, "events", "*.json"))
 	}

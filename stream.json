@@ -9,18 +9,14 @@
         {
           "id": "front",
           "images_dir": ".material/classes/classroom-a/front/images",
-          "event_globs": [
-            ".material/samples/1771233054.json",
-            ".material/samples/1771233069.json"
-          ]
+          "events_dir": ".material/classes/classroom-a/front/events",
+          "file_pattern": "*.json"
         },
         {
           "id": "back",
           "images_dir": ".material/classes/classroom-a/back/images",
-          "event_globs": [
-            ".material/samples/1771233082.json",
-            ".material/samples/1771233089.json"
-          ]
+          "events_dir": ".material/classes/classroom-a/back/events",
+          "file_pattern": "*.json"
         }
       ]
     }

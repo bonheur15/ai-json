@@ -60,3 +60,11 @@
 - Implemented transaction-based event ingestion from decoded event streams.
 - Implemented paginated event query API and SQL-based summary aggregations.
 - Added storage tests covering insert, list filtering, and summary counts.
+
+### Step 10 completed
+- Added HTTP API server (`cmd/ai-json-api`) with health, ingest, events, and summary endpoints.
+- Added live ingestion runner that scans stream camera event directories and ingests only new/changed JSON files.
+- Added SQLite file-ingestion state tracking (`ingested_files`) to prevent duplicate inserts.
+- Added periodic scheduler mode in API server for continuous background ingestion.
+- Updated sample `stream.json` and class camera folders to use directory-based live event ingestion.
+- Added API and ingestion tests; validated with end-to-end local endpoint smoke run.

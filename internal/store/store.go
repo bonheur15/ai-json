@@ -102,6 +102,12 @@ CREATE INDEX IF NOT EXISTS idx_events_stream_class ON events(stream_class_id);
 CREATE INDEX IF NOT EXISTS idx_events_stream_camera ON events(stream_camera_id);
 CREATE INDEX IF NOT EXISTS idx_events_camera ON events(camera_id);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+CREATE TABLE IF NOT EXISTS ingested_files (
+  path TEXT PRIMARY KEY,
+  size_bytes INTEGER NOT NULL,
+  mod_unix INTEGER NOT NULL,
+  ingested_at TEXT NOT NULL
+);
 `
 	_, err := s.db.Exec(schema)
 	if err != nil {
@@ -190,6 +196,37 @@ INSERT INTO events(
 		return count, fmt.Errorf("commit tx: %w", err)
 	}
 	return count, nil
+}
+
+func (s *Store) ShouldIngestFile(path string, sizeBytes int64, modUnix int64) (bool, error) {
+	var (
+		oldSize int64
+		oldMod  int64
+	)
+	err := s.db.QueryRow("SELECT size_bytes, mod_unix FROM ingested_files WHERE path = ?", path).Scan(&oldSize, &oldMod)
+	if err == sql.ErrNoRows {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check ingested file: %w", err)
+	}
+	if oldSize == sizeBytes && oldMod == modUnix {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *Store) MarkFileIngested(path string, sizeBytes int64, modUnix int64) error {
+	_, err := s.db.Exec(`INSERT INTO ingested_files(path, size_bytes, mod_unix, ingested_at)
+VALUES(?, ?, ?, ?)
+ON CONFLICT(path) DO UPDATE SET
+  size_bytes = excluded.size_bytes,
+  mod_unix = excluded.mod_unix,
+  ingested_at = excluded.ingested_at`, path, sizeBytes, modUnix, time.Now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("mark file ingested: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) ListEvents(f EventFilter) ([]EventRecord, int64, error) {
