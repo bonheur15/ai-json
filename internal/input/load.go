@@ -13,6 +13,7 @@ import (
 type Dataset struct {
 	Files  []string
 	Events []model.Event
+	Stream *StreamSummary
 }
 
 func Load(paths []string, globs []string) (Dataset, error) {

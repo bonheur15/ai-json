@@ -33,3 +33,10 @@
 - Added tests for warning vs. error behavior on negative transport delay.
 - Updated README with complete usage, filtering, and report examples.
 - Verified project with `go test ./...` and sample CLI execution.
+
+### Step 6 completed
+- Added `stream.json` domain model for classes and camera configurations.
+- Enforced required camera pair (`front`, `back`) per class with strict validation.
+- Added ingestion of camera image folders (JPG count) and event JSON files.
+- Attached stream metadata (`stream_class_id`, `stream_camera_id`) to decoded events.
+- Added stream-config tests for success path and missing-camera validation.
