@@ -35,6 +35,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/ingest/stream", s.handleIngestStream)
 	mux.HandleFunc("/v1/events", s.handleListEvents)
 	mux.HandleFunc("/v1/special-events", s.handleSpecialEvents)
+	mux.HandleFunc("/v1/special-events-with-images", s.handleSpecialEventsWithImages)
 	mux.HandleFunc("/v1/event-images", s.handleEventImages)
 	mux.HandleFunc("/v1/image", s.handleImage)
 	mux.HandleFunc("/v1/student-metrics/daily", s.handleStudentDailyMetrics)
@@ -204,6 +205,81 @@ func (s *Server) handleSpecialEvents(w http.ResponseWriter, r *http.Request) {
 		"limit":       filter.Limit,
 		"offset":      filter.Offset,
 		"events":      events,
+	})
+}
+
+func (s *Server) handleSpecialEventsWithImages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "only GET allowed")
+		return
+	}
+	filter, err := parseFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_query", err.Error())
+		return
+	}
+	window := 5
+	if v := strings.TrimSpace(r.URL.Query().Get("window_seconds")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 || n > 120 {
+			writeError(w, http.StatusBadRequest, "invalid_window_seconds", "window_seconds must be 0..120")
+			return
+		}
+		window = n
+	}
+	streamPath := strings.TrimSpace(r.URL.Query().Get("stream_path"))
+	if streamPath == "" {
+		streamPath = s.DefaultStream
+	}
+	resolver, err := media.NewStreamImageResolver(streamPath)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "stream_resolve_failed", err.Error())
+		return
+	}
+
+	eventTypes := splitCSV(r.URL.Query().Get("event_types"))
+	if len(eventTypes) == 0 {
+		eventTypes = defaultSpecialEventTypes()
+	}
+	filter.EventTypes = eventTypes
+
+	dayStart, dayEnd, err := parseDayRange(r.URL.Query().Get("date"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_date", err.Error())
+		return
+	}
+	filter.FromTS = &dayStart
+	filter.ToTS = &dayEnd
+
+	events, total, err := s.Store.ListEvents(filter)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "query_failed", err.Error())
+		return
+	}
+
+	type item struct {
+		Event  store.EventRecord        `json:"event"`
+		Images []media.ImageContextItem `json:"images"`
+	}
+	out := make([]item, 0, len(events))
+	for _, ev := range events {
+		classID := firstNonEmpty(ev.StreamClassID, ev.RoomID)
+		cameraID := firstNonEmpty(ev.StreamCameraID, ev.CameraID)
+		eventTS := int64(0)
+		if ev.Timestamp != nil {
+			eventTS = int64(*ev.Timestamp)
+		}
+		ctx := resolver.BuildContext(classID, cameraID, eventTS, window, "/v1/image")
+		out = append(out, item{Event: ev, Images: ctx})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"date":           time.Unix(int64(dayStart), 0).UTC().Format("2006-01-02"),
+		"event_types":    eventTypes,
+		"total":          total,
+		"limit":          filter.Limit,
+		"offset":         filter.Offset,
+		"window_seconds": window,
+		"events":         out,
 	})
 }
 

@@ -13,6 +13,7 @@
 - [x] Step 10: Add live periodic ingestion engine and advanced HTTP API endpoints backed by SQLite.
 - [x] Step 11: Write full API/stream documentation including endpoint contracts and error model.
 - [x] Step 12: Add image context APIs, special-event endpoints, and daily student cleaning metrics.
+- [x] Step 13: Add special-events endpoint with embedded image context payload.
 
 ## Next (Optional)
 - [ ] Add auth and API key middleware.

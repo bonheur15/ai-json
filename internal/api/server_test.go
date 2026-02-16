@@ -125,6 +125,26 @@ func TestSpecialEventsAndEventImagesAndImageServe(t *testing.T) {
 	if rr4.Code != http.StatusOK {
 		t.Fatalf("image serve status: %d body=%s", rr4.Code, rr4.Body.String())
 	}
+
+	req5 := httptest.NewRequest(http.MethodGet, "/v1/special-events-with-images?window_seconds=5&stream_path="+cfgPath, nil)
+	rr5 := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr5, req5)
+	if rr5.Code != http.StatusOK {
+		t.Fatalf("special-events-with-images status: %d body=%s", rr5.Code, rr5.Body.String())
+	}
+	var enriched map[string]any
+	if err := json.Unmarshal(rr5.Body.Bytes(), &enriched); err != nil {
+		t.Fatalf("decode special-events-with-images: %v", err)
+	}
+	enrichedEvents := enriched["events"].([]any)
+	if len(enrichedEvents) == 0 {
+		t.Fatalf("expected enriched special events")
+	}
+	first := enrichedEvents[0].(map[string]any)
+	context := first["images"].([]any)
+	if len(context) != 11 {
+		t.Fatalf("expected 11 context entries, got %d", len(context))
+	}
 }
 
 func TestStudentDailyMetrics(t *testing.T) {

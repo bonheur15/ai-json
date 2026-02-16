@@ -170,6 +170,37 @@ Default special event types:
 }
 ```
 
+## `GET /v1/special-events-with-images`
+
+Returns special events and pre-expanded image context in one call.
+
+### Query
+
+- All parameters from `GET /v1/special-events`
+- `window_seconds` optional (default `5`, range `0..120`)
+- `stream_path` optional
+
+### 200
+
+```json
+{
+  "date": "2026-02-16",
+  "event_types": ["sleeping_suspected","posture_changed","proximity_event","role_assigned"],
+  "total": 55,
+  "window_seconds": 5,
+  "events": [
+    {
+      "event": { "...": "original event row" },
+      "images": [
+        {"offset_seconds":-1,"timestamp":1771233088,"exists":false},
+        {"offset_seconds":0,"timestamp":1771233089,"exists":true,"url":"/v1/image?..."},
+        {"offset_seconds":1,"timestamp":1771233090,"exists":false}
+      ]
+    }
+  ]
+}
+```
+
 ## `GET /v1/event-images`
 
 Returns image context around one event.

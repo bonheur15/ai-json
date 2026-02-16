@@ -31,6 +31,9 @@ curl -X POST 'http://127.0.0.1:8080/v1/ingest/stream?stream_path=./stream.json'
 # Special events for today
 curl 'http://127.0.0.1:8080/v1/special-events'
 
+# Special events with embedded +/-5s image context
+curl 'http://127.0.0.1:8080/v1/special-events-with-images?window_seconds=5'
+
 # Get +/-5s images for one special event
 curl 'http://127.0.0.1:8080/v1/event-images?event_id=198&window_seconds=5'
 

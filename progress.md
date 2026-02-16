@@ -82,3 +82,8 @@
 - Added `/v1/student-metrics/daily` with cleaned class-level max/average student detection logic across two cameras.
 - Enforced max-past ingestion window (default 60s) using event filename epoch parsing in periodic runner.
 - Updated API docs with full endpoint contracts, error codes, and live ingestion behavior.
+
+### Step 13 completed
+- Added `GET /v1/special-events-with-images` to return special events and image context in one response.
+- Added endpoint test coverage verifying embedded image-context payload shape.
+- Updated API docs and README quick examples for the new endpoint.
