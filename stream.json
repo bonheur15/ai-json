@@ -2,20 +2,20 @@
   "version": "1.0",
   "classes": [
     {
-      "class_id": "classroom-a",
-      "name": "Classroom A",
-      "base_dir": ".material/classes/classroom-a",
+      "class_id": "l5fbo-front",
+      "name": "L5FBO Front",
+      "base_dir": "../ai_intelligent_analyzer/data",
       "cameras": [
         {
           "id": "front",
-          "images_dir": ".material/classes/classroom-a/front/images",
-          "events_dir": ".material/classes/classroom-a/front/events",
+          "images_dir": "../ai_intelligent_analyzer/data/overlay_snapshots/room1/back",
+          "events_dir": "../ai_intelligent_analyzer/data/overlay/room1/back",
           "file_pattern": "*.json"
         },
         {
           "id": "back",
-          "images_dir": ".material/classes/classroom-a/back/images",
-          "events_dir": ".material/classes/classroom-a/back/events",
+          "images_dir": "../ai_intelligent_analyzer/data/overlay_snapshots/room1/front",
+          "events_dir": "../ai_intelligent_analyzer/data/overlay/room1/front",
           "file_pattern": "*.json"
         }
       ]
