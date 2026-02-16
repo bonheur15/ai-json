@@ -113,3 +113,39 @@ func TestRunTransportDelayJitterThreshold(t *testing.T) {
 		t.Fatalf("expected error for strong negative delay")
 	}
 }
+
+func TestRunStreamClassCameraCounts(t *testing.T) {
+	data := []byte(`[
+	  {
+		"event_type":"person_tracked",
+		"room_id":"r1",
+		"camera_id":"front",
+		"pipeline":"p1",
+		"confidence":0.5,
+		"timestamp":1,
+		"frame_timestamp":1,
+		"frame_source_timestamp":1,
+		"emitted_at":1,
+		"timestamp_offset_seconds":0,
+		"timestamp_stabilizer_skew_seconds":0,
+		"frame_age_seconds":0.1,
+		"frame_transport_delay_seconds":0.1,
+		"person_id":"unknown:1",
+		"global_person_id":1,
+		"track_id":1,
+		"stream_class_id":"class-a",
+		"stream_camera_id":"front"
+	  }
+	]`)
+	events, err := model.ParseEvents(data)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	res := Run(events)
+	if len(res.StreamClassCounts) != 1 || res.StreamClassCounts[0].Key != "class-a" {
+		t.Fatalf("unexpected class counts: %+v", res.StreamClassCounts)
+	}
+	if len(res.StreamCameraCounts) != 1 || res.StreamCameraCounts[0].Key != "front" {
+		t.Fatalf("unexpected camera counts: %+v", res.StreamCameraCounts)
+	}
+}

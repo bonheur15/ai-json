@@ -43,6 +43,22 @@ func RenderText(result analyze.Analysis, files []string, stream *input.StreamSum
 	}
 	fmt.Fprintf(&b, "\n")
 
+	if len(result.StreamClassCounts) > 0 {
+		fmt.Fprintf(&b, "Stream Classes\n")
+		for _, c := range result.StreamClassCounts {
+			fmt.Fprintf(&b, "- %-28s %d\n", c.Key, c.Count)
+		}
+		fmt.Fprintf(&b, "\n")
+	}
+
+	if len(result.StreamCameraCounts) > 0 {
+		fmt.Fprintf(&b, "Stream Cameras\n")
+		for _, c := range result.StreamCameraCounts {
+			fmt.Fprintf(&b, "- %-28s %d\n", c.Key, c.Count)
+		}
+		fmt.Fprintf(&b, "\n")
+	}
+
 	fmt.Fprintf(&b, "Confidence Stats (min/avg/p50/p95/max)\n")
 	fmt.Fprintf(&b, "- %.4f / %.4f / %.4f / %.4f / %.4f\n", result.Confidence.Min, result.Confidence.Avg, result.Confidence.P50, result.Confidence.P95, result.Confidence.Max)
 	fmt.Fprintf(&b, "\n")

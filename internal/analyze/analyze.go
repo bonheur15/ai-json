@@ -46,6 +46,8 @@ type PairCount struct {
 type Analysis struct {
 	TotalEvents          int               `json:"total_events"`
 	EventTypeCounts      []KeyCount        `json:"event_type_counts"`
+	StreamClassCounts    []KeyCount        `json:"stream_class_counts"`
+	StreamCameraCounts   []KeyCount        `json:"stream_camera_counts"`
 	RoomCounts           []KeyCount        `json:"room_counts"`
 	CameraCounts         []KeyCount        `json:"camera_counts"`
 	RoleCounts           []KeyCount        `json:"role_counts"`
@@ -67,6 +69,8 @@ type Analysis struct {
 
 func Run(events []model.Event) Analysis {
 	typeCounts := map[string]int{}
+	streamClassCounts := map[string]int{}
+	streamCameraCounts := map[string]int{}
 	roomCounts := map[string]int{}
 	cameraCounts := map[string]int{}
 	roleCounts := map[string]int{}
@@ -98,6 +102,12 @@ func Run(events []model.Event) Analysis {
 		}
 		if common.CameraID != "" {
 			cameraCounts[common.CameraID]++
+		}
+		if streamClassID, ok := ev.String("stream_class_id"); ok && streamClassID != "" {
+			streamClassCounts[streamClassID]++
+		}
+		if streamCameraID, ok := ev.String("stream_camera_id"); ok && streamCameraID != "" {
+			streamCameraCounts[streamCameraID]++
 		}
 
 		for _, p := range commonProblems {
@@ -181,6 +191,8 @@ func Run(events []model.Event) Analysis {
 	return Analysis{
 		TotalEvents:          len(events),
 		EventTypeCounts:      toKeyCounts(typeCounts),
+		StreamClassCounts:    toKeyCounts(streamClassCounts),
+		StreamCameraCounts:   toKeyCounts(streamCameraCounts),
 		RoomCounts:           toKeyCounts(roomCounts),
 		CameraCounts:         toKeyCounts(cameraCounts),
 		RoleCounts:           toKeyCounts(roleCounts),

@@ -47,3 +47,9 @@
 - Extended JSON/text output to include stream inventory and per-camera event/image stats.
 - Added ready-to-use `stream.json` and camera folder scaffold for class-based workflows.
 - Updated README to document stream schema and advanced usage patterns.
+
+### Step 8 completed
+- Added stream-aware analytics counters for `stream_class_id` and `stream_camera_id`.
+- Extended text report with class and camera event distribution blocks.
+- Added test coverage for stream class/camera count aggregation.
+- Re-ran full test suite and stream CLI report checks.
