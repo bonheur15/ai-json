@@ -1,57 +1,86 @@
 # ai-json
 
-Advanced JSON analytics CLI for classroom/computer-vision event streams.
+Advanced analytics for class-based camera streams.
 
-It ingests JSON event arrays like those in `.material/samples/` and produces:
+`ai-json` is now configuration-driven through `stream.json`, where you define classes and camera sources (`front` and `back`), including image folders and event JSON files.
 
-- schema-aware validation errors and warnings
-- event distribution and confidence analytics
-- latency/timestamp quality metrics
-- person/track and proximity insights
-- text or JSON reports
+## Core model
 
-## Status
+- `stream.json` stores classes and all stream configurations.
+- Each class must define two cameras: `front` and `back`.
+- Each camera points to:
+  - an `images_dir` containing `.jpg/.jpeg` frames
+  - event JSON sources (`event_files`, `event_globs`, or `events_dir`)
 
-Track implementation progress in:
+The CLI validates this structure and reports inventory + analytics.
 
-- `todo.md`
-- `progress.md`
+## Quick start
 
-## Usage
+```bash
+go run ./cmd/ai-json --stream stream.json
+```
+
+If `--stream` is omitted and `./stream.json` exists, it is used automatically.
+
+## stream.json schema
+
+```json
+{
+  "version": "1.0",
+  "classes": [
+    {
+      "class_id": "classroom-a",
+      "name": "Classroom A",
+      "base_dir": "./data/classroom-a",
+      "cameras": [
+        {
+          "id": "front",
+          "images_dir": "./data/classroom-a/front/images",
+          "events_dir": "./data/classroom-a/front/events",
+          "event_files": ["./extra/front-events.json"],
+          "event_globs": ["./imports/front/*.json"]
+        },
+        {
+          "id": "back",
+          "images_dir": "./data/classroom-a/back/images",
+          "events_dir": "./data/classroom-a/back/events"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## CLI
 
 ```bash
 go run ./cmd/ai-json [flags]
 ```
 
-If no input flags are passed, the CLI automatically analyzes `.material/samples/*.json`.
+### Important flags
 
-### Inputs
+- `--stream <path>`: stream config JSON path
+- `--format text|json`: output format
+- `--class-ids <csv>`: filter by class IDs
+- `--camera-ids <csv>`: filter by camera IDs
+- `--event-types <csv>`: filter by event types
+- `--min-confidence <float>`: confidence threshold
+- `--max-issues <n>`: limit text issue lines
+- `--strict`: exit code `1` if validation errors exist
 
-- `--input <file>`: direct file input (repeatable or comma-separated)
-- `--glob <pattern>`: glob input (repeatable or comma-separated)
-
-### Filtering
-
-- `--event-types <csv>`: include only specific event types
-- `--min-confidence <float>`: include only events with confidence >= threshold
-
-### Output
-
-- `--format text|json`: report format
-- `--max-issues <n>`: limit printed issues in text output (`0` prints all)
-- `--strict`: exit with code `1` if validation errors are found
-
-## Examples
+### Examples
 
 ```bash
-# Default: analyze sample files with text report
-go run ./cmd/ai-json
+# Analyze configured classes/cameras
+go run ./cmd/ai-json --stream stream.json
 
-# Analyze all samples with JSON output
-go run ./cmd/ai-json --glob '.material/samples/*.json' --format json
+# JSON report with stream inventory
+go run ./cmd/ai-json --stream stream.json --format json
 
-# Filter to key event types and higher confidence
-go run ./cmd/ai-json --glob '.material/samples/*.json' \
+# Front camera only for one class and selected event types
+go run ./cmd/ai-json --stream stream.json \
+  --class-ids classroom-a \
+  --camera-ids front \
   --event-types person_tracked,role_assigned,proximity_event \
   --min-confidence 0.6
 ```

@@ -5,9 +5,10 @@ import (
 	"strings"
 
 	"ai-json/internal/analyze"
+	"ai-json/internal/input"
 )
 
-func RenderText(result analyze.Analysis, files []string, maxIssues int) string {
+func RenderText(result analyze.Analysis, files []string, stream *input.StreamSummary, maxIssues int) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "AI JSON Analysis Report\n")
@@ -17,6 +18,20 @@ func RenderText(result analyze.Analysis, files []string, maxIssues int) string {
 		fmt.Fprintf(&b, "- %s\n", f)
 	}
 	fmt.Fprintf(&b, "\n")
+
+	if stream != nil {
+		fmt.Fprintf(&b, "Stream Inventory\n")
+		fmt.Fprintf(&b, "- Config: %s\n", stream.ConfigPath)
+		fmt.Fprintf(&b, "- Classes: %d | Images: %d | Event Files: %d\n", stream.TotalClasses, stream.TotalImages, stream.TotalEventFiles)
+		for _, cls := range stream.Classes {
+			fmt.Fprintf(&b, "- Class %s (%s)\n", cls.ClassID, cls.Name)
+			for _, cam := range cls.Cameras {
+				fmt.Fprintf(&b, "  camera=%s images=%d event_files=%d events=%d\n", cam.ID, cam.ImageCount, cam.EventFileCount, cam.EventCount)
+			}
+		}
+		fmt.Fprintf(&b, "\n")
+	}
+
 	fmt.Fprintf(&b, "Total Events: %d\n", result.TotalEvents)
 	fmt.Fprintf(&b, "Unique Person IDs: %d | Global IDs: %d | Track IDs: %d\n", result.UniquePersonIDs, result.UniqueGlobalIDs, result.UniqueTrackIDs)
 	fmt.Fprintf(&b, "Validation: %d errors, %d warnings\n", result.ErrorCount, result.WarningCount)

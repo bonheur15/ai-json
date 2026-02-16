@@ -40,3 +40,10 @@
 - Added ingestion of camera image folders (JPG count) and event JSON files.
 - Attached stream metadata (`stream_class_id`, `stream_camera_id`) to decoded events.
 - Added stream-config tests for success path and missing-camera validation.
+
+### Step 7 completed
+- Integrated `--stream` mode in CLI with auto-detection of local `stream.json`.
+- Added class and camera filtering flags (`--class-ids`, `--camera-ids`).
+- Extended JSON/text output to include stream inventory and per-camera event/image stats.
+- Added ready-to-use `stream.json` and camera folder scaffold for class-based workflows.
+- Updated README to document stream schema and advanced usage patterns.

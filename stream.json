@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "classes": [
+    {
+      "class_id": "classroom-a",
+      "name": "Classroom A",
+      "base_dir": ".material/classes/classroom-a",
+      "cameras": [
+        {
+          "id": "front",
+          "images_dir": ".material/classes/classroom-a/front/images",
+          "event_globs": [
+            ".material/samples/1771233054.json",
+            ".material/samples/1771233069.json"
+          ]
+        },
+        {
+          "id": "back",
+          "images_dir": ".material/classes/classroom-a/back/images",
+          "event_globs": [
+            ".material/samples/1771233082.json",
+            ".material/samples/1771233089.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
