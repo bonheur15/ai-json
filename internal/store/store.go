@@ -163,7 +163,7 @@ INSERT INTO events(
 			return count, fmt.Errorf("marshal event raw: %w", err)
 		}
 
-		eventType, _ := ev.String("event_type")
+		eventType := ev.EventTypeName()
 		roomID, _ := ev.String("room_id")
 		cameraID, _ := ev.String("camera_id")
 		personID, _ := ev.String("person_id")

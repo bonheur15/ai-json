@@ -117,7 +117,7 @@ func filterEvents(events []model.Event, allowedTypes, allowedClasses, allowedCam
 	out := make([]model.Event, 0, len(events))
 	for _, ev := range events {
 		if len(allowedTypes) > 0 {
-			eventType, _ := ev.String("event_type")
+			eventType := ev.EventTypeName()
 			if _, ok := allowedTypes[eventType]; !ok {
 				continue
 			}

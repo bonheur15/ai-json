@@ -14,6 +14,19 @@ type Event struct {
 	Raw map[string]any
 }
 
+// EventTypeName normalizes the event type across streams:
+// - perception stream uses "event_type"
+// - inference stream uses "type"
+func (e Event) EventTypeName() string {
+	if v, ok := e.String("event_type"); ok && v != "" {
+		return v
+	}
+	if v, ok := e.String("type"); ok && v != "" {
+		return v
+	}
+	return ""
+}
+
 // CommonFields captures normalized fields that appear in nearly all events.
 type CommonFields struct {
 	EventType                     string
@@ -209,8 +222,9 @@ func (e Event) ParseCommonFields() (CommonFields, []string) {
 	)
 
 	var ok bool
-	if c.EventType, ok = e.String("event_type"); !ok || c.EventType == "" {
-		problems = append(problems, "missing event_type")
+	c.EventType = e.EventTypeName()
+	if c.EventType == "" {
+		problems = append(problems, "missing event_type/type")
 	}
 	if c.RoomID, ok = e.String("room_id"); !ok || c.RoomID == "" {
 		problems = append(problems, "missing room_id")

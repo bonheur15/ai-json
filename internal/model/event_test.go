@@ -37,3 +37,23 @@ func TestParseEventsNDJSON(t *testing.T) {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 }
+
+func TestEventTypeNameFallsBackToType(t *testing.T) {
+	input := `{"type":"teacher_engagement","room_id":"r","camera_id":"c","pipeline":"p","confidence":1,"timestamp":1,"frame_timestamp":1,"frame_source_timestamp":1,"emitted_at":1,"timestamp_offset_seconds":0,"timestamp_stabilizer_skew_seconds":0,"frame_age_seconds":0,"frame_transport_delay_seconds":0}`
+	events, err := ParseEvents([]byte(input))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got := events[0].EventTypeName(); got != "teacher_engagement" {
+		t.Fatalf("expected fallback type, got %q", got)
+	}
+	common, probs := events[0].ParseCommonFields()
+	if common.EventType != "teacher_engagement" {
+		t.Fatalf("common event type mismatch: %q", common.EventType)
+	}
+	for _, p := range probs {
+		if p == "missing event_type/type" {
+			t.Fatalf("unexpected missing type problem")
+		}
+	}
+}

@@ -45,6 +45,56 @@ go run ./cmd/ai-json-api \
     - events_dir
     - file_pattern (default `*.json`)
 
+## Supported Event Type Fields
+
+- Perception stream (`/perception/events`): `event_type`
+- Inference stream (`/inference/outputs`): `type`
+
+The service normalizes both into stored/queryable `event_type` in SQLite.
+
+### Perception event catalog
+
+- `frame_tick`
+- `frame_skipped`
+- `person_detected`
+- `person_tracked`
+- `person_lost`
+- `role_assigned`
+- `identity_resolved`
+- `head_orientation_changed`
+- `body_movement`
+- `posture_changed`
+- `sleeping_suspected`
+- `object_detected`
+- `object_associated`
+- `device_usage_detected`
+- `teacher_phone_usage`
+- `student_phone_usage`
+- `phone_usage_detected`
+- `proximity_event`
+- `group_formed`
+- `group_updated`
+- `attention_observation`
+
+### Inference event catalog
+
+- `cheating_suspicion`
+- `teacher_engagement`
+- `participation_summary`
+- `teacher_student_interaction`
+- `teacher_absence`
+- `paper_interaction`
+- `safety_suspicion`
+- `attention_summary`
+- `offtask_movement`
+- `student_sleep_risk`
+- `student_device_distraction`
+- `teacher_device_usage`
+- `student_behavior_summary`
+- `group_participation_summary`
+- `group_collaboration`
+- `lesson_comprehensive_summary`
+
 ## Ingestion Behavior
 
 Each scan cycle:

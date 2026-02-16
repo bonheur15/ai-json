@@ -92,3 +92,9 @@
 - Rewrote `docs/API.md` response examples with concrete real payloads.
 - Removed placeholder snippets like `events: [...]` and `summary: {...}`.
 - Added explicit field/value examples for event rows, special-events-with-images, and summary counts.
+
+### Step 15 completed
+- Added dual-stream event type normalization (`event_type` for perception, `type` for inference).
+- Updated storage and CLI filtering to use normalized event type names.
+- Added tests ensuring inference events are stored/queryable by normalized `event_type`.
+- Updated API docs with full perception/inference event catalogs and normalization behavior.

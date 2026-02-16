@@ -97,4 +97,39 @@ func TestStoreGetEventByIDAndDailyMetrics(t *testing.T) {
 	}
 }
 
+func TestStoreInsertInferenceTypeField(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "events.db")
+	s, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	events, err := model.ParseEvents([]byte(`[{
+		"type":"teacher_engagement",
+		"room_id":"class-a",
+		"camera_id":"front",
+		"stream_class_id":"class-a",
+		"stream_camera_id":"front",
+		"confidence":0.7,
+		"timestamp":123
+	}]`))
+	if err != nil {
+		t.Fatalf("parse events: %v", err)
+	}
+	if _, err := s.InsertEvents(events, "inference.json"); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	rows, total, err := s.ListEvents(EventFilter{EventTypes: []string{"teacher_engagement"}, Limit: 10})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if total != 1 || len(rows) != 1 {
+		t.Fatalf("expected one row, total=%d len=%d", total, len(rows))
+	}
+	if rows[0].EventType != "teacher_engagement" {
+		t.Fatalf("unexpected stored event_type: %q", rows[0].EventType)
+	}
+}
+
 func strconvF(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
