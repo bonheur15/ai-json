@@ -1,34 +1,17 @@
-# AI-JSON API Documentation
+# AI-JSON Live API
 
-## Overview
+## Purpose
 
-`ai-json-api` provides local HTTP endpoints backed by SQLite for:
+This service ingests live classroom camera events into local SQLite and provides query/analysis/image endpoints.
 
-- live ingestion from class/camera event directories
-- direct event ingestion by payload
-- querying stored events with filters and pagination
-- aggregated summary analytics
+It is designed for:
 
-The service is designed for continuously produced event JSON files.
+- `class_id` with 2 cameras (`front`, `back`)
+- event JSON files named `{unix_epoch_seconds}.json`
+- image files named `{unix_epoch_seconds}.jpg` or `.jpeg`
+- continuous live ingestion from camera folders
 
-## Architecture
-
-### Components
-
-- `cmd/ai-json-api`: HTTP server process and periodic scheduler
-- `internal/ingest`: live scanner/ingestion runner for stream directories
-- `internal/store`: SQLite schema, insert logic, query filters, summary SQL
-- `internal/api`: HTTP handlers, request validation, and JSON responses
-
-### Data flow
-
-1. Event producer writes JSON files to camera event folders.
-2. Periodic runner scans folders from `stream.json`.
-3. New/changed files are detected using `ingested_files` state table.
-4. Events are parsed and inserted into `events` table.
-5. API query endpoints read analytics and event rows from SQLite.
-
-## Run
+## Runtime
 
 ```bash
 go run ./cmd/ai-json-api \
@@ -36,37 +19,48 @@ go run ./cmd/ai-json-api \
   --db ./data/ai-json.db \
   --stream ./stream.json \
   --poll-seconds 5 \
-  --min-file-age-seconds 2
+  --min-file-age-seconds 2 \
+  --max-past-seconds 60
 ```
 
-### Runtime flags
+### Flags
 
-- `--addr`: HTTP bind address (default `:8080`)
-- `--db`: SQLite file path (default `./data/ai-json.db`)
-- `--stream`: stream config path used by scheduler and stream ingestion endpoint
-- `--poll-seconds`: periodic scan interval (`0` disables scheduler)
-- `--min-file-age-seconds`: skip files younger than this age to avoid partial writes
+- `--addr`: API bind address
+- `--db`: SQLite DB path
+- `--stream`: stream config path (can be `stream.json` or `camera.json`)
+- `--poll-seconds`: periodic ingestion interval (`0` disables scheduler)
+- `--min-file-age-seconds`: skip files too new (avoid partial writes)
+- `--max-past-seconds`: ingest only files not older than this by filename epoch
 
-## stream.json Structure
+## Stream Config
 
-### Required model
+`stream.json` (or any path passed to `--stream`):
 
-- `classes[]`
-  - `class_id` (required)
-  - `name` (optional)
-  - `base_dir` (required/recommended)
-  - `cameras[]`
-    - required IDs: `front` and `back`
-    - `images_dir` (optional, defaults to `<base_dir>/<camera>/images`)
-    - `events_dir` (optional, defaults to `<base_dir>/<camera>/events`)
-    - `file_pattern` (optional, default `*.json`)
+- classes[]
+  - class_id
+  - base_dir
+  - cameras[]
+    - id: `front`, `back`
+    - images_dir
+    - events_dir
+    - file_pattern (default `*.json`)
 
-### Optional compatibility fields
+## Ingestion Behavior
 
-- `event_files[]`
-- `event_globs[]`
+Each scan cycle:
 
-These are still supported but directory-based ingestion is the primary live mode.
+1. read classes/cameras from stream config
+2. list event JSON files per camera
+3. process oldest to newest
+4. keep only files in allowed time window (`max_past_seconds`)
+5. skip files already ingested with same size+mtime
+6. parse JSON events and insert into SQLite
+
+Error tolerance:
+
+- missing/newly-not-ready files are skipped safely
+- malformed event files return detailed ingestion errors
+- missing image files do not break event ingestion
 
 ## Endpoints
 
@@ -74,132 +68,203 @@ These are still supported but directory-based ingestion is the primary live mode
 
 Health check.
 
-### Response 200
+### 200
 
 ```json
-{
-  "status": "ok",
-  "timestamp": "2026-02-16T09:46:05.985091193Z"
-}
-```
-
-## `POST /v1/ingest/events`
-
-Ingest raw event payload directly.
-
-### Query parameters
-
-- `class_id` (optional): inject/override `stream_class_id`
-- `camera_id` (optional): inject/override `stream_camera_id`
-- `source` (optional): source label stored in DB
-
-### Body
-
-- JSON array of events
-- JSON object (single event)
-- NDJSON
-
-### Response 200
-
-```json
-{
-  "inserted": 120,
-  "source": "api:/v1/ingest/events"
-}
+{"status":"ok","timestamp":"2026-02-16T10:00:00Z"}
 ```
 
 ## `POST /v1/ingest/stream`
 
-Run one live scan ingestion cycle against stream-config camera folders.
+Run one ingestion cycle immediately.
 
-### Query parameters
+### Query
 
-- `stream_path` (optional, default server `--stream`)
-- `min_file_age_seconds` (optional, default server `--min-file-age-seconds`)
+- `stream_path` optional
+- `min_file_age_seconds` optional
+- `max_past_seconds` optional
 
-### Response 200
+### 200
 
 ```json
 {
   "inserted": 199,
   "processed_files": 4,
   "skipped_files": 0,
-  "stream_path": "/abs/path/stream.json"
+  "stream_path": "./stream.json",
+  "max_past_seconds": 60
 }
+```
+
+## `POST /v1/ingest/events`
+
+Direct payload ingestion.
+
+### Query
+
+- `class_id` optional
+- `camera_id` optional
+- `source` optional
+
+### Body
+
+- JSON array, JSON object, or NDJSON
+
+### 200
+
+```json
+{"inserted":12,"source":"api:/v1/ingest/events"}
 ```
 
 ## `GET /v1/events`
 
-List ingested events with pagination and filters.
+General event query.
 
-### Query parameters
+### Query
 
-- `event_types`: csv (`person_tracked,proximity_event`)
-- `class_ids`: csv (uses `stream_class_id` fallback `room_id`)
-- `camera_ids`: csv (uses `stream_camera_id` fallback `camera_id`)
-- `min_confidence`: float
-- `from_ts`: float timestamp lower bound
-- `to_ts`: float timestamp upper bound
-- `limit`: int (`1..1000`, default `200`)
-- `offset`: int (default `0`)
+- `event_types` csv
+- `class_ids` csv
+- `camera_ids` csv
+- `min_confidence` float
+- `from_ts` float
+- `to_ts` float
+- `limit` int
+- `offset` int
 
-### Response 200
+### 200
 
 ```json
 {
   "total": 199,
-  "limit": 200,
+  "limit": 50,
   "offset": 0,
-  "events": [
-    {
-      "id": 1,
-      "ingested_at": "2026-02-16T09:46:08.120Z",
-      "source_file": "/path/front/events/1771233054.json",
-      "stream_class_id": "classroom-a",
-      "stream_camera_id": "front",
-      "event_type": "person_tracked",
-      "raw": {"...": "..."}
-    }
+  "events": [ ... ]
+}
+```
+
+## `GET /v1/special-events`
+
+Special events for a day (default: current UTC day).
+
+Default special event types:
+
+- `sleeping_suspected`
+- `posture_changed`
+- `proximity_event`
+- `role_assigned`
+
+### Query
+
+- `date` (`YYYY-MM-DD`) optional
+- `event_types` csv optional override
+- all filters from `/v1/events` (`class_ids`, `camera_ids`, `limit`, `offset`, etc)
+
+### 200
+
+```json
+{
+  "date": "2026-02-16",
+  "event_types": ["sleeping_suspected","posture_changed","proximity_event","role_assigned"],
+  "total": 55,
+  "events": [ ... ]
+}
+```
+
+## `GET /v1/event-images`
+
+Returns image context around one event.
+
+### Query
+
+- `event_id` required
+- `window_seconds` optional (default `5`, range `0..120`)
+- `stream_path` optional
+
+### 200
+
+```json
+{
+  "event_id": 198,
+  "class_id": "classroom-a",
+  "camera_id": "back",
+  "event_ts": 1771233089,
+  "window_seconds": 5,
+  "images": [
+    {"offset_seconds":-1,"timestamp":1771233088,"exists":false},
+    {"offset_seconds":0,"timestamp":1771233089,"exists":true,"path":".../1771233089.jpg","url":"/v1/image?class_id=classroom-a&camera_id=back&ts=1771233089"},
+    {"offset_seconds":1,"timestamp":1771233090,"exists":false}
+  ]
+}
+```
+
+Notes:
+
+- Missing files are returned with `exists:false` (not an endpoint error).
+- This endpoint is the main way to get "5 seconds past/future" image context.
+
+## `GET /v1/image`
+
+Serves a single JPEG by class/camera/second.
+
+### Query
+
+- `class_id` required
+- `camera_id` required
+- `ts` required (unix seconds)
+- `stream_path` optional
+
+### Responses
+
+- `200` with `Content-Type: image/jpeg`
+- `404` when image file not found
+
+## `GET /v1/student-metrics/daily`
+
+Cleaned student detection metrics per class for a day.
+
+### Query
+
+- `date` optional (`YYYY-MM-DD`, default current UTC day)
+- `class_ids` optional csv
+
+### Cleaning logic
+
+- Uses `person_tracked` and `person_detected`
+- Keeps student rows only (`person_role` or `role` == `student`)
+- Per class/camera/second: count distinct student identities
+- Per class/second: use max across cameras
+- Returns:
+  - `max_students`: highest per-second class count of day
+  - `average_students`: average per-second class count across sampled seconds
+
+### 200
+
+```json
+{
+  "date":"2026-02-16",
+  "metrics":[
+    {"class_id":"classroom-a","max_students":7,"average_students":6,"sampled_seconds":4}
   ]
 }
 ```
 
 ## `GET /v1/summary`
 
-Aggregated analytics over the filtered event set.
+Aggregated analytics over filtered event set.
 
-### Query parameters
+### Query
 
-Same filter set as `GET /v1/events`.
+Same filters as `/v1/events`.
 
-### Response 200
+### 200
 
 ```json
-{
-  "summary": {
-    "total_events": 199,
-    "distinct_classes": 1,
-    "distinct_cameras": 2,
-    "avg_confidence": 0.579,
-    "min_timestamp": 1771233054.2231407,
-    "max_timestamp": 1771233089.5232406,
-    "event_type_counts": [
-      {"key": "person_tracked", "count": 77}
-    ],
-    "stream_class_counts": [
-      {"key": "classroom-a", "count": 199}
-    ],
-    "stream_camera_counts": [
-      {"key": "front", "count": 100},
-      {"key": "back", "count": 99}
-    ]
-  }
-}
+{"summary":{...}}
 ```
 
-## Error Model
+## Error Contract
 
-All handler errors are JSON:
+All non-image errors are JSON:
 
 ```json
 {
@@ -210,52 +275,36 @@ All handler errors are JSON:
 }
 ```
 
-### Typical error codes
+### Common Codes
 
 - `method_not_allowed`
-- `read_body_failed`
 - `invalid_events_payload`
-- `invalid_query`
-- `invalid_min_file_age_seconds`
-- `stream_load_failed`
 - `stream_ingest_failed`
-- `insert_failed`
-- `query_failed`
+- `invalid_min_file_age_seconds`
+- `invalid_max_past_seconds`
+- `invalid_query`
+- `invalid_date`
+- `event_not_found`
+- `event_without_timestamp`
+- `invalid_image_request`
+- `image_not_found`
+- `daily_metrics_failed`
 - `summary_failed`
 
-### HTTP status usage
-
-- `200`: success
-- `400`: invalid input/query/body/config
-- `405`: invalid HTTP method
-- `500`: internal processing/storage failure
-
-## SQLite Schema
+## SQLite Data
 
 ### `events`
 
-- event metadata columns (`event_type`, `class/camera`, `confidence`, `timestamp`, ...)
-- raw JSON payload in `raw_json`
+Stores event metadata + full raw JSON (`raw_json`).
 
 ### `ingested_files`
 
-- `path` (PK)
-- `size_bytes`
-- `mod_unix`
-- `ingested_at`
+Tracks ingested event files by `path + size + mtime` to avoid duplicate ingestion.
 
-Used to ensure periodic scans only ingest new/changed files.
+## Recommended Client Flow
 
-## Operational Notes
-
-- Keep event producers writing atomic files when possible.
-- Use `min_file_age_seconds` to avoid ingesting files mid-write.
-- For high throughput, run scheduler (`--poll-seconds > 0`) and call query endpoints only.
-- You can still trigger manual ingestion with `POST /v1/ingest/stream`.
-
-## Example Workflow
-
-1. Start API server with scheduler enabled.
-2. Event producer writes JSON files into configured camera event directories.
-3. Scheduler ingests new files every polling interval.
-4. Client dashboard polls `GET /v1/summary` and `GET /v1/events`.
+1. Keep API server running with scheduler.
+2. Producers write `{epoch}.json` and `{epoch}.jpg` files to camera folders.
+3. Use `/v1/special-events` for daily critical incidents.
+4. For selected event, call `/v1/event-images?event_id=...&window_seconds=5`.
+5. Download/render individual images with `/v1/image` URLs.

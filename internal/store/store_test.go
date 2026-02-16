@@ -2,7 +2,9 @@ package store
 
 import (
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"ai-json/internal/model"
 )
@@ -50,3 +52,49 @@ func TestStoreInsertListSummary(t *testing.T) {
 		t.Fatalf("expected 2 camera counts, got %d", len(summary.StreamCameraCounts))
 	}
 }
+
+func TestStoreGetEventByIDAndDailyMetrics(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "events.db")
+	s, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	ts := float64(time.Now().UTC().Unix())
+	events, err := model.ParseEvents([]byte(`[
+		{"event_type":"person_tracked","room_id":"class-a","camera_id":"front","stream_class_id":"class-a","stream_camera_id":"front","pipeline":"p","confidence":0.8,"timestamp":` + strconvF(ts) + `,"frame_timestamp":1,"frame_source_timestamp":1,"emitted_at":1,"timestamp_offset_seconds":0,"timestamp_stabilizer_skew_seconds":0,"frame_age_seconds":0.1,"frame_transport_delay_seconds":0.1,"person_role":"student","person_id":"s1"},
+		{"event_type":"person_tracked","room_id":"class-a","camera_id":"front","stream_class_id":"class-a","stream_camera_id":"front","pipeline":"p","confidence":0.8,"timestamp":` + strconvF(ts) + `,"frame_timestamp":1,"frame_source_timestamp":1,"emitted_at":1,"timestamp_offset_seconds":0,"timestamp_stabilizer_skew_seconds":0,"frame_age_seconds":0.1,"frame_transport_delay_seconds":0.1,"person_role":"student","person_id":"s2"}
+	]`))
+	if err != nil {
+		t.Fatalf("parse events: %v", err)
+	}
+	if _, err := s.InsertEvents(events, "test.json"); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	rows, _, err := s.ListEvents(EventFilter{Limit: 10})
+	if err != nil || len(rows) == 0 {
+		t.Fatalf("list events: %v", err)
+	}
+	got, err := s.GetEventByID(rows[0].ID)
+	if err != nil {
+		t.Fatalf("get by id: %v", err)
+	}
+	if got.ID == 0 {
+		t.Fatalf("expected non-zero id")
+	}
+
+	day := time.Unix(int64(ts), 0).UTC()
+	start := float64(time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC).Unix())
+	end := float64(time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC).Add(24 * time.Hour).Unix())
+	metrics, err := s.DailyStudentMetrics(start, end, []string{"class-a"})
+	if err != nil {
+		t.Fatalf("daily metrics: %v", err)
+	}
+	if len(metrics) == 0 {
+		t.Fatalf("expected metrics rows")
+	}
+}
+
+func strconvF(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"ai-json/internal/input"
@@ -16,6 +18,7 @@ type Runner struct {
 	Store      *store.Store
 	StreamPath string
 	MinFileAge time.Duration
+	MaxPastAge time.Duration
 }
 
 type RunStats struct {
@@ -33,6 +36,9 @@ func (r *Runner) RunOnce() (RunStats, error) {
 	}
 	if r.MinFileAge <= 0 {
 		r.MinFileAge = 2 * time.Second
+	}
+	if r.MaxPastAge <= 0 {
+		r.MaxPastAge = 1 * time.Minute
 	}
 
 	resolved, err := input.ResolveStreamConfig(r.StreamPath)
@@ -53,6 +59,13 @@ func (r *Runner) RunOnce() (RunStats, error) {
 				info, err := os.Stat(file)
 				if err != nil {
 					continue
+				}
+				epochTS, ok := epochFromJSONFilename(file)
+				if ok {
+					if now.Unix()-epochTS > int64(r.MaxPastAge.Seconds()) {
+						stats.SkippedFiles++
+						continue
+					}
 				}
 				if now.Sub(info.ModTime()) < r.MinFileAge {
 					stats.SkippedFiles++
@@ -97,4 +110,14 @@ func (r *Runner) RunOnce() (RunStats, error) {
 	}
 
 	return stats, nil
+}
+
+func epochFromJSONFilename(path string) (int64, bool) {
+	base := filepath.Base(path)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	v, err := strconv.ParseInt(name, 10, 64)
+	if err != nil || v <= 0 {
+		return 0, false
+	}
+	return v, true
 }

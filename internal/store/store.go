@@ -62,6 +62,13 @@ type CountItem struct {
 	Count int64  `json:"count"`
 }
 
+type StudentDailyMetric struct {
+	ClassID         string  `json:"class_id"`
+	MaxStudents     int64   `json:"max_students"`
+	AverageStudents float64 `json:"average_students"`
+	SampledSeconds  int64   `json:"sampled_seconds"`
+}
+
 func Open(path string) (*Store, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -292,6 +299,40 @@ FROM events` + where + ` ORDER BY id DESC LIMIT ? OFFSET ?`
 	return out, total, nil
 }
 
+func (s *Store) GetEventByID(id int64) (EventRecord, error) {
+	var r EventRecord
+	var (
+		globalID sql.NullInt64
+		trackID  sql.NullInt64
+		conf     sql.NullFloat64
+		ts       sql.NullFloat64
+		raw      string
+	)
+	err := s.db.QueryRow(`SELECT id, ingested_at, source_file, stream_class_id, stream_camera_id, event_type, room_id, camera_id, person_id, global_person_id, track_id, confidence, timestamp, raw_json
+FROM events WHERE id = ?`, id).Scan(&r.ID, &r.IngestedAt, &r.SourceFile, &r.StreamClassID, &r.StreamCameraID, &r.EventType, &r.RoomID, &r.CameraID, &r.PersonID, &globalID, &trackID, &conf, &ts, &raw)
+	if err != nil {
+		return r, err
+	}
+	if globalID.Valid {
+		v := globalID.Int64
+		r.GlobalPersonID = &v
+	}
+	if trackID.Valid {
+		v := trackID.Int64
+		r.TrackID = &v
+	}
+	if conf.Valid {
+		v := conf.Float64
+		r.Confidence = &v
+	}
+	if ts.Valid {
+		v := ts.Float64
+		r.Timestamp = &v
+	}
+	r.Raw = json.RawMessage(raw)
+	return r, nil
+}
+
 func (s *Store) Summary(f EventFilter) (Summary, error) {
 	where, args := buildWhere(f)
 	var out Summary
@@ -314,6 +355,61 @@ FROM events` + where
 		return out, err
 	}
 
+	return out, nil
+}
+
+func (s *Store) DailyStudentMetrics(dayStart, dayEnd float64, classIDs []string) ([]StudentDailyMetric, error) {
+	clauses := []string{"timestamp >= ?", "timestamp < ?", "event_type IN ('person_tracked','person_detected')", "COALESCE(json_extract(raw_json,'$.person_role'), json_extract(raw_json,'$.role'), '') = 'student'"}
+	args := []any{dayStart, dayEnd}
+	if len(classIDs) > 0 {
+		clauses = append(clauses, "COALESCE(stream_class_id, room_id) IN ("+placeholders(len(classIDs))+")")
+		for _, id := range classIDs {
+			args = append(args, id)
+		}
+	}
+	where := " WHERE " + strings.Join(clauses, " AND ")
+
+	query := `
+WITH filtered AS (
+  SELECT
+    COALESCE(stream_class_id, room_id) AS class_id,
+    COALESCE(stream_camera_id, camera_id) AS camera_id,
+    CAST(timestamp AS INTEGER) AS sec,
+    COALESCE(CAST(global_person_id AS TEXT), CAST(track_id AS TEXT), person_id) AS pid
+  FROM events` + where + `
+),
+cam_counts AS (
+  SELECT class_id, camera_id, sec, COUNT(DISTINCT pid) AS cnt
+  FROM filtered
+  WHERE class_id IS NOT NULL AND class_id != '' AND camera_id IS NOT NULL AND camera_id != '' AND pid IS NOT NULL AND pid != ''
+  GROUP BY class_id, camera_id, sec
+),
+class_seconds AS (
+  SELECT class_id, sec, MAX(cnt) AS class_cnt
+  FROM cam_counts
+  GROUP BY class_id, sec
+)
+SELECT class_id, MAX(class_cnt) AS max_students, AVG(class_cnt) AS avg_students, COUNT(*) AS sampled_seconds
+FROM class_seconds
+GROUP BY class_id
+ORDER BY class_id ASC`
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("daily student metrics query: %w", err)
+	}
+	defer rows.Close()
+	out := make([]StudentDailyMetric, 0)
+	for rows.Next() {
+		var m StudentDailyMetric
+		if err := rows.Scan(&m.ClassID, &m.MaxStudents, &m.AverageStudents, &m.SampledSeconds); err != nil {
+			return nil, fmt.Errorf("scan daily student metrics: %w", err)
+		}
+		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate daily student metrics: %w", err)
+	}
 	return out, nil
 }
 

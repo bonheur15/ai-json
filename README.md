@@ -1,36 +1,47 @@
 # ai-json
 
-Live class-camera event ingestion and analytics with local SQLite.
+Go service for live classroom event ingestion, SQLite storage, analytics, and image context APIs.
 
-## What It Does
+## Core Features
 
-- Reads class/camera topology from `stream.json`
-- Scans camera event folders for newly produced JSON files
-- Periodically ingests new/changed files into local SQLite
-- Exposes advanced HTTP endpoints for ingestion, querying, and analytics
+- Periodic ingestion from camera event directories
+- SQLite-backed event storage and summaries
+- Daily special events endpoint
+- Event-centered image context endpoint (past/future seconds)
+- JPEG serving endpoint
+- Daily class student metrics (max and average cleaned counts)
 
-## Quick Start
+## Start API
 
 ```bash
-# 1) Start API server + scheduler
-go run ./cmd/ai-json-api --stream ./stream.json --poll-seconds 5
+go run ./cmd/ai-json-api \
+  --stream ./stream.json \
+  --db ./data/ai-json.db \
+  --poll-seconds 5 \
+  --min-file-age-seconds 2 \
+  --max-past-seconds 60
+```
 
-# 2) Trigger immediate ingestion (optional)
+## Quick Calls
+
+```bash
+# Force one ingestion cycle
 curl -X POST 'http://127.0.0.1:8080/v1/ingest/stream?stream_path=./stream.json'
 
-# 3) Read analytics
-curl 'http://127.0.0.1:8080/v1/summary'
+# Special events for today
+curl 'http://127.0.0.1:8080/v1/special-events'
+
+# Get +/-5s images for one special event
+curl 'http://127.0.0.1:8080/v1/event-images?event_id=198&window_seconds=5'
+
+# Serve one image
+curl 'http://127.0.0.1:8080/v1/image?class_id=classroom-a&camera_id=front&ts=1771233054' --output frame.jpg
+
+# Daily student metrics
+curl 'http://127.0.0.1:8080/v1/student-metrics/daily?date=2026-02-16'
 ```
 
-## Docs
+## Documentation
 
-- API reference: `docs/API.md`
-- Stream config guide: `docs/STREAM.md`
-
-## CLI Analyzer (existing)
-
-You can still run the offline analytics CLI:
-
-```bash
-go run ./cmd/ai-json --stream stream.json
-```
+- API: `docs/API.md`
+- Stream config: `docs/STREAM.md`

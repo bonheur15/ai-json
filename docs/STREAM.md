@@ -1,10 +1,15 @@
-# Stream Configuration Guide
+# Stream Config
 
-## Purpose
+## Objective
 
-`stream.json` declares your classes and camera directories. Event files are discovered from directories at runtime; you do not need to list each generated event file.
+Declare classes and camera directories for live ingestion.
 
-## Minimal Example
+## File Naming
+
+- Event files: `{unix_epoch_seconds}.json`
+- Image files: `{unix_epoch_seconds}.jpg` (or `.jpeg`)
+
+## Example
 
 ```json
 {
@@ -35,7 +40,7 @@
 
 ## Rules
 
-- Each class must define both `front` and `back` cameras.
-- `base_dir` and camera directories must exist.
-- Camera event folders are scanned repeatedly by the ingestion runner.
-- Changed files are re-ingested; unchanged files are skipped.
+- Each class must include both `front` and `back` cameras.
+- Directories must exist.
+- Ingestion scans `events_dir` and uses image folder for context serving.
+- Old files can be automatically excluded by `max_past_seconds`.

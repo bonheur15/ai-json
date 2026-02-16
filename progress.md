@@ -74,3 +74,11 @@
 - Added stream configuration documentation (`docs/STREAM.md`) focused on live folder-based ingestion.
 - Updated README to center the project around live ingestion + SQLite + API usage.
 - Re-ran full test suite and stream analyzer verification.
+
+### Step 12 completed
+- Added image context resolution over class/camera image directories with `±window_seconds` support.
+- Added `/v1/event-images` and `/v1/image` endpoints for event-bound image discovery and JPEG serving.
+- Added `/v1/special-events` endpoint for current-day (or selected day) special events.
+- Added `/v1/student-metrics/daily` with cleaned class-level max/average student detection logic across two cameras.
+- Enforced max-past ingestion window (default 60s) using event filename epoch parsing in periodic runner.
+- Updated API docs with full endpoint contracts, error codes, and live ingestion behavior.

@@ -12,8 +12,9 @@
 - [x] Step 9: Add local SQLite storage with indexed queries and summary aggregations.
 - [x] Step 10: Add live periodic ingestion engine and advanced HTTP API endpoints backed by SQLite.
 - [x] Step 11: Write full API/stream documentation including endpoint contracts and error model.
+- [x] Step 12: Add image context APIs, special-event endpoints, and daily student cleaning metrics.
 
 ## Next (Optional)
 - [ ] Add auth and API key middleware.
-- [ ] Add dashboard-ready websocket stream for live summary push.
-- [ ] Add retention jobs for old events and compacted rollups.
+- [ ] Add dashboard websocket stream for live push updates.
+- [ ] Add retention jobs + rollups for very large datasets.
