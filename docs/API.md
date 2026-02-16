@@ -49,12 +49,12 @@ go run ./cmd/ai-json-api \
 
 Each scan cycle:
 
-1. read classes/cameras from stream config
-2. list event JSON files per camera
-3. process oldest to newest
-4. keep only files in allowed time window (`max_past_seconds`)
-5. skip files already ingested with same size+mtime
-6. parse JSON events and insert into SQLite
+1. Read classes/cameras from stream config
+2. List event JSON files per camera
+3. Process oldest to newest
+4. Keep only files in allowed time window (`max_past_seconds`)
+5. Skip files already ingested with same size+mtime
+6. Parse JSON events and insert into SQLite
 
 Error tolerance:
 
@@ -71,7 +71,10 @@ Health check.
 ### 200
 
 ```json
-{"status":"ok","timestamp":"2026-02-16T10:00:00Z"}
+{
+  "status": "ok",
+  "timestamp": "2026-02-16T10:00:00.123456789Z"
+}
 ```
 
 ## `POST /v1/ingest/stream`
@@ -113,7 +116,10 @@ Direct payload ingestion.
 ### 200
 
 ```json
-{"inserted":12,"source":"api:/v1/ingest/events"}
+{
+  "inserted": 12,
+  "source": "api:/v1/ingest/events"
+}
 ```
 
 ## `GET /v1/events`
@@ -136,9 +142,53 @@ General event query.
 ```json
 {
   "total": 199,
-  "limit": 50,
+  "limit": 2,
   "offset": 0,
-  "events": [ ... ]
+  "events": [
+    {
+      "id": 199,
+      "ingested_at": "2026-02-16T10:03:14.827688582Z",
+      "source_file": "/home/bonheur/Desktop/Projects/ai/ai-json/.material/classes/classroom-a/back/events/1771233089.json",
+      "stream_class_id": "classroom-a",
+      "stream_camera_id": "back",
+      "event_type": "frame_tick",
+      "room_id": "room1",
+      "camera_id": "front",
+      "global_person_id": 0,
+      "confidence": 1,
+      "timestamp": 1771233089.5232406,
+      "raw": {
+        "event_type": "frame_tick",
+        "room_id": "room1",
+        "camera_id": "front",
+        "detections_count": 20,
+        "objects_count": 0,
+        "stream_class_id": "classroom-a",
+        "stream_camera_id": "back"
+      }
+    },
+    {
+      "id": 198,
+      "ingested_at": "2026-02-16T10:03:14.827688582Z",
+      "source_file": "/home/bonheur/Desktop/Projects/ai/ai-json/.material/classes/classroom-a/back/events/1771233089.json",
+      "stream_class_id": "classroom-a",
+      "stream_camera_id": "back",
+      "event_type": "proximity_event",
+      "room_id": "room1",
+      "camera_id": "front",
+      "global_person_id": 0,
+      "confidence": 0.5,
+      "timestamp": 1771233089.5232406,
+      "raw": {
+        "event_type": "proximity_event",
+        "status": "close",
+        "distance": 104.88207663848004,
+        "track_ids": [61, 65],
+        "stream_class_id": "classroom-a",
+        "stream_camera_id": "back"
+      }
+    }
+  ]
 }
 ```
 
@@ -164,9 +214,51 @@ Default special event types:
 ```json
 {
   "date": "2026-02-16",
-  "event_types": ["sleeping_suspected","posture_changed","proximity_event","role_assigned"],
+  "event_types": [
+    "sleeping_suspected",
+    "posture_changed",
+    "proximity_event",
+    "role_assigned"
+  ],
   "total": 55,
-  "events": [ ... ]
+  "limit": 2,
+  "offset": 0,
+  "events": [
+    {
+      "id": 198,
+      "ingested_at": "2026-02-16T10:03:14.827688582Z",
+      "source_file": "/home/bonheur/Desktop/Projects/ai/ai-json/.material/classes/classroom-a/back/events/1771233089.json",
+      "stream_class_id": "classroom-a",
+      "stream_camera_id": "back",
+      "event_type": "proximity_event",
+      "room_id": "room1",
+      "camera_id": "front",
+      "confidence": 0.5,
+      "timestamp": 1771233089.5232406,
+      "raw": {
+        "event_type": "proximity_event",
+        "status": "close",
+        "distance": 104.88207663848004
+      }
+    },
+    {
+      "id": 197,
+      "ingested_at": "2026-02-16T10:03:14.827688582Z",
+      "source_file": "/home/bonheur/Desktop/Projects/ai/ai-json/.material/classes/classroom-a/back/events/1771233089.json",
+      "stream_class_id": "classroom-a",
+      "stream_camera_id": "back",
+      "event_type": "proximity_event",
+      "room_id": "room1",
+      "camera_id": "front",
+      "confidence": 0.5,
+      "timestamp": 1771233089.5232406,
+      "raw": {
+        "event_type": "proximity_event",
+        "status": "close",
+        "distance": 80.1826040983953
+      }
+    }
+  ]
 }
 ```
 
@@ -185,16 +277,44 @@ Returns special events and pre-expanded image context in one call.
 ```json
 {
   "date": "2026-02-16",
-  "event_types": ["sleeping_suspected","posture_changed","proximity_event","role_assigned"],
+  "event_types": [
+    "sleeping_suspected",
+    "posture_changed",
+    "proximity_event",
+    "role_assigned"
+  ],
   "total": 55,
+  "limit": 1,
+  "offset": 0,
   "window_seconds": 5,
   "events": [
     {
-      "event": { "...": "original event row" },
+      "event": {
+        "id": 198,
+        "stream_class_id": "classroom-a",
+        "stream_camera_id": "back",
+        "event_type": "proximity_event",
+        "camera_id": "front",
+        "timestamp": 1771233089.5232406
+      },
       "images": [
-        {"offset_seconds":-1,"timestamp":1771233088,"exists":false},
-        {"offset_seconds":0,"timestamp":1771233089,"exists":true,"url":"/v1/image?..."},
-        {"offset_seconds":1,"timestamp":1771233090,"exists":false}
+        {
+          "offset_seconds": -1,
+          "timestamp": 1771233088,
+          "exists": false
+        },
+        {
+          "offset_seconds": 0,
+          "timestamp": 1771233089,
+          "exists": true,
+          "path": "/home/bonheur/Desktop/Projects/ai/ai-json/.material/classes/classroom-a/back/images/1771233089.jpg",
+          "url": "/v1/image?class_id=classroom-a&camera_id=back&ts=1771233089"
+        },
+        {
+          "offset_seconds": 1,
+          "timestamp": 1771233090,
+          "exists": false
+        }
       ]
     }
   ]
@@ -221,9 +341,23 @@ Returns image context around one event.
   "event_ts": 1771233089,
   "window_seconds": 5,
   "images": [
-    {"offset_seconds":-1,"timestamp":1771233088,"exists":false},
-    {"offset_seconds":0,"timestamp":1771233089,"exists":true,"path":".../1771233089.jpg","url":"/v1/image?class_id=classroom-a&camera_id=back&ts=1771233089"},
-    {"offset_seconds":1,"timestamp":1771233090,"exists":false}
+    {
+      "offset_seconds": -1,
+      "timestamp": 1771233088,
+      "exists": false
+    },
+    {
+      "offset_seconds": 0,
+      "timestamp": 1771233089,
+      "exists": true,
+      "path": "/home/bonheur/Desktop/Projects/ai/ai-json/.material/classes/classroom-a/back/images/1771233089.jpg",
+      "url": "/v1/image?class_id=classroom-a&camera_id=back&ts=1771233089"
+    },
+    {
+      "offset_seconds": 1,
+      "timestamp": 1771233090,
+      "exists": false
+    }
   ]
 }
 ```
@@ -272,9 +406,14 @@ Cleaned student detection metrics per class for a day.
 
 ```json
 {
-  "date":"2026-02-16",
-  "metrics":[
-    {"class_id":"classroom-a","max_students":7,"average_students":6,"sampled_seconds":4}
+  "date": "2026-02-16",
+  "metrics": [
+    {
+      "class_id": "classroom-a",
+      "max_students": 7,
+      "average_students": 6,
+      "sampled_seconds": 4
+    }
   ]
 }
 ```
@@ -290,7 +429,28 @@ Same filters as `/v1/events`.
 ### 200
 
 ```json
-{"summary":{...}}
+{
+  "summary": {
+    "total_events": 199,
+    "distinct_classes": 1,
+    "distinct_cameras": 2,
+    "avg_confidence": 0.5790431245128748,
+    "min_timestamp": 1771233054.2231407,
+    "max_timestamp": 1771233089.5232406,
+    "event_type_counts": [
+      {"key": "person_tracked", "count": 77},
+      {"key": "head_orientation_changed", "count": 32},
+      {"key": "proximity_event", "count": 29}
+    ],
+    "stream_class_counts": [
+      {"key": "classroom-a", "count": 199}
+    ],
+    "stream_camera_counts": [
+      {"key": "front", "count": 100},
+      {"key": "back", "count": 99}
+    ]
+  }
+}
 ```
 
 ## Error Contract
@@ -321,21 +481,3 @@ All non-image errors are JSON:
 - `image_not_found`
 - `daily_metrics_failed`
 - `summary_failed`
-
-## SQLite Data
-
-### `events`
-
-Stores event metadata + full raw JSON (`raw_json`).
-
-### `ingested_files`
-
-Tracks ingested event files by `path + size + mtime` to avoid duplicate ingestion.
-
-## Recommended Client Flow
-
-1. Keep API server running with scheduler.
-2. Producers write `{epoch}.json` and `{epoch}.jpg` files to camera folders.
-3. Use `/v1/special-events` for daily critical incidents.
-4. For selected event, call `/v1/event-images?event_id=...&window_seconds=5`.
-5. Download/render individual images with `/v1/image` URLs.

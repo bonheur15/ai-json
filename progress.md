@@ -87,3 +87,8 @@
 - Added `GET /v1/special-events-with-images` to return special events and image context in one response.
 - Added endpoint test coverage verifying embedded image-context payload shape.
 - Updated API docs and README quick examples for the new endpoint.
+
+### Step 14 completed
+- Rewrote `docs/API.md` response examples with concrete real payloads.
+- Removed placeholder snippets like `events: [...]` and `summary: {...}`.
+- Added explicit field/value examples for event rows, special-events-with-images, and summary counts.
