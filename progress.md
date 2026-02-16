@@ -21,3 +21,9 @@
 - Added analysis engine for event distributions, confidence/latency summaries, and identity statistics.
 - Added validation logic for common fields, bbox integrity, person-event fields, proximity constraints, and frame tick fields.
 - Added analysis tests covering sample data and invalid proximity scenarios.
+
+### Step 4 completed
+- Added input loader for explicit files and glob patterns with deterministic file resolution.
+- Implemented complete CLI flags for format selection, filtering, issue limits, and strict mode.
+- Added text and JSON report output including top entities, latency metrics, and validation issue summaries.
+- Added tests for input loading and text report rendering.
