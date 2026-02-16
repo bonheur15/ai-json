@@ -68,3 +68,9 @@
 - Added periodic scheduler mode in API server for continuous background ingestion.
 - Updated sample `stream.json` and class camera folders to use directory-based live event ingestion.
 - Added API and ingestion tests; validated with end-to-end local endpoint smoke run.
+
+### Step 11 completed
+- Added complete API documentation (`docs/API.md`) including runtime model, endpoint contracts, query filters, payload formats, and error model.
+- Added stream configuration documentation (`docs/STREAM.md`) focused on live folder-based ingestion.
+- Updated README to center the project around live ingestion + SQLite + API usage.
+- Re-ran full test suite and stream analyzer verification.

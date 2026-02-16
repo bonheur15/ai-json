@@ -1,8 +1,5 @@
 # TODO
 
-## In Progress
-- [ ] Step 11: Write full API documentation (features, structure, endpoints, errors, and live ingestion workflow).
-
 ## Done
 - [x] Step 1: Bootstrap project structure, tracking docs, and CLI skeleton.
 - [x] Step 2: Implement resilient event decoding and shared model helpers.
@@ -14,8 +11,9 @@
 - [x] Step 8: Add class/camera distribution analytics and stream-aware filtering enhancements.
 - [x] Step 9: Add local SQLite storage with indexed queries and summary aggregations.
 - [x] Step 10: Add live periodic ingestion engine and advanced HTTP API endpoints backed by SQLite.
+- [x] Step 11: Write full API/stream documentation including endpoint contracts and error model.
 
 ## Next (Optional)
-- [ ] Add CSV export and time-window filtering flags.
-- [ ] Add benchmark tests for high-volume event streams.
-- [ ] Add configurable validation profiles per deployment.
+- [ ] Add auth and API key middleware.
+- [ ] Add dashboard-ready websocket stream for live summary push.
+- [ ] Add retention jobs for old events and compacted rollups.
